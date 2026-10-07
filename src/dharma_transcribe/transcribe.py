@@ -3,7 +3,7 @@
 from datetime import datetime
 
 from . import config
-from .config import BATCH_SIZE, COMPUTE_TYPE, WHISPER_MODEL
+from .config import BATCH_SIZE, COMPUTE_TYPE, WHISPER_LANGUAGE, WHISPER_MODEL
 from .gpu import flush_gpu, vram_free_mb
 
 
@@ -34,7 +34,7 @@ def transcribe_audio(wav_path: str) -> dict | None:
     result = model.transcribe(
         audio,
         batch_size=BATCH_SIZE,
-        language=None,  # auto-detect
+        language=WHISPER_LANGUAGE,  # None = auto-detect; env DHARMA_WHISPER_LANGUAGE forces
     )
 
     # TranscriptionResult is a TypedDict — access as dict

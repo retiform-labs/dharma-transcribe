@@ -41,6 +41,9 @@ WAV_DIR = OUTPUT_DIR / "wav"
 # --- WhisperX settings --------------------------------------------------------
 
 WHISPER_MODEL = os.environ.get("DHARMA_WHISPER_MODEL", "large-v3")
+# DHARMA_WHISPER_LANGUAGE: force a language code (e.g. "en"); empty = auto-detect.
+# Needed for code-mixed files whose intro latches auto-detect onto the wrong language.
+WHISPER_LANGUAGE = os.environ.get("DHARMA_WHISPER_LANGUAGE", "") or None
 COMPUTE_TYPE = os.environ.get("DHARMA_COMPUTE_TYPE", "int8")
 BATCH_SIZE = int(os.environ.get("DHARMA_BATCH_SIZE", "4"))
 DEVICE = os.environ.get("DHARMA_DEVICE", "cuda")
