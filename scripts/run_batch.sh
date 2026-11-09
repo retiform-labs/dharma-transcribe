@@ -14,18 +14,30 @@
 #   * the venv must be active for whisperx/pyannote to import.
 #
 # Usage:
-#   scripts/run_batch.sh <input-path> [log-name]
+#   scripts/run_batch.sh <input-path> [log-name] [extra python args...]
 #
 # Example:
 #   scripts/run_batch.sh "/media/.../Kongokai Mandala Series" kongokai
+#   scripts/run_batch.sh "/media/.../Vajra Mandala" vajra --skip-llm
+#
+# SAMAYA GATE — read before changing the defaults:
+#   Restricted tantra (Vajra Mandala, Dakini Land, any restricted-tantra batch)
+#   MUST be transcribed locally only.  Stage 6 (LLM post-correction) sends
+#   transcript text to an EXTERNAL API and is therefore FORBIDDEN for that
+#   material.  A failover provider does NOT inherit permission.
+#   => this launcher passes --skip-llm by default; pass --allow-llm explicitly
+#      only for unrestricted material.  (Historically this script passed no
+#      flag, so invoking it would have silently routed restricted transcripts
+#      off-box — the gate was inert whenever the launcher was used.)
 #
 set -euo pipefail
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$PROJECT_ROOT"
 
-INPUT="${1:?usage: run_batch.sh <input-path> [log-name]}"
+INPUT="${1:?usage: run_batch.sh <input-path> [log-name] [extra args...]}"
 LOG_NAME="${2:-batch}"
+shift 2 2>/dev/null || shift $#   # remaining args are forwarded to python
 LOG="logs/${LOG_NAME}.log"
 LOG_DIR="logs"
 SESSION="${LOG_NAME}"
@@ -68,5 +80,26 @@ echo "Logging to $LOG (tail -f to watch live)"
 echo "tmux session: $SESSION"
 echo "---"
 
-python -m dharma_transcribe "$INPUT" 2>&1 | tee "$LOG"
+# --- Samaya gate --------------------------------------------------------------
+# Stage 6 posts transcript text to an external API. For restricted tantra that is
+# a samaya violation, so the DEFAULT here is to skip it. Callers opt in for
+# unrestricted material with an explicit --allow-llm; if any other --skip-llm /
+# --allow-llm was already passed in "$@", that choice wins.
+SKIP_LLM=1
+EXTRA_ARGS=()
+for arg in "$@"; do
+  case "$arg" in
+    --allow-llm) SKIP_LLM=0 ;;
+    --skip-llm)  SKIP_LLM=1 ;;
+    *)           EXTRA_ARGS+=("$arg") ;;
+  esac
+done
+if [[ "$SKIP_LLM" -eq 1 ]]; then
+  EXTRA_ARGS+=(--skip-llm)
+  echo "SAMAYA GATE: stage 6 (LLM correction) DISABLED — pass --allow-llm to enable"
+else
+  echo "SAMAYA GATE: stage 6 ENABLED — only for UNRESTRICTED material"
+fi
+
+python -m dharma_transcribe "$INPUT" "${EXTRA_ARGS[@]}" 2>&1 | tee "$LOG"
 echo "DONE=${PIPESTATUS[0]}" >> "$LOG"

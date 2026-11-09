@@ -68,14 +68,26 @@ def apply_dictionary(transcript: dict) -> dict:
     return transcript
 
 
-def generate_json(transcript: dict, source_name: str):
+def _out_stem(source_name: str, out_name: str | None = None) -> str:
+    """Resolve the filename stem for an output artifact.
+
+    ``source_name`` records provenance and is preserved inside the transcripts
+    themselves.  ``out_name`` overrides only the *filename*, which matters when
+    two different source files share a basename (e.g. several ``final.mp4``
+    files, one per Vimeo directory) — without an override their outputs collide
+    and silently overwrite each other.
+    """
+    return Path(out_name).stem if out_name else Path(source_name).stem
+
+
+def generate_json(transcript: dict, source_name: str, out_name: str | None = None):
     """Write full structured JSON output."""
-    out_path = JSON_DIR / f"{Path(source_name).stem}.json"
+    out_path = JSON_DIR / f"{_out_stem(source_name, out_name)}.json"
     out_path.write_text(json.dumps(transcript, indent=2, ensure_ascii=False))
     return out_path
 
 
-def generate_srt(transcript: dict, source_name: str):
+def generate_srt(transcript: dict, source_name: str, out_name: str | None = None):
     """Write SRT subtitle file with speaker labels."""
     lines = []
     for i, seg in enumerate(transcript.get("segments", []), 1):
@@ -90,12 +102,12 @@ def generate_srt(transcript: dict, source_name: str):
         lines.append(text)
         lines.append("")
 
-    out_path = SRT_DIR / f"{Path(source_name).stem}.srt"
+    out_path = SRT_DIR / f"{_out_stem(source_name, out_name)}.srt"
     out_path.write_text("\n".join(lines))
     return out_path
 
 
-def generate_vtt(transcript: dict, source_name: str):
+def generate_vtt(transcript: dict, source_name: str, out_name: str | None = None):
     """Write VTT subtitle file."""
     lines = ["WEBVTT", ""]
     for seg in transcript.get("segments", []):
@@ -109,12 +121,12 @@ def generate_vtt(transcript: dict, source_name: str):
         lines.append(text)
         lines.append("")
 
-    out_path = VTT_DIR / f"{Path(source_name).stem}.vtt"
+    out_path = VTT_DIR / f"{_out_stem(source_name, out_name)}.vtt"
     out_path.write_text("\n".join(lines))
     return out_path
 
 
-def generate_txt(transcript: dict, source_name: str):
+def generate_txt(transcript: dict, source_name: str, out_name: str | None = None):
     """Write plain text reading copy."""
     lines = []
     for seg in transcript.get("segments", []):
@@ -125,12 +137,12 @@ def generate_txt(transcript: dict, source_name: str):
         else:
             lines.append(text)
 
-    out_path = TXT_DIR / f"{Path(source_name).stem}.txt"
+    out_path = TXT_DIR / f"{_out_stem(source_name, out_name)}.txt"
     out_path.write_text("\n".join(lines) + "\n")
     return out_path
 
 
-def generate_review_queue(transcript: dict, source_name: str):
+def generate_review_queue(transcript: dict, source_name: str, out_name: str | None = None):
     """Generate review queue for low-confidence segments."""
     review_items = []
     for i, seg in enumerate(transcript.get("segments", [])):
@@ -157,7 +169,7 @@ def generate_review_queue(transcript: dict, source_name: str):
             )
 
     if review_items:
-        out_path = REVIEW_DIR / f"{Path(source_name).stem}_review.json"
+        out_path = REVIEW_DIR / f"{_out_stem(source_name, out_name)}_review.json"
         out_path.write_text(
             json.dumps(
                 {
@@ -173,18 +185,18 @@ def generate_review_queue(transcript: dict, source_name: str):
     return None
 
 
-def generate_all_outputs(transcript: dict, source_name: str) -> dict:
+def generate_all_outputs(transcript: dict, source_name: str, out_name: str | None = None) -> dict:
     """Generate all output formats."""
     # Apply dictionary corrections first
     transcript = apply_dictionary(transcript)
 
     outputs = {}
-    outputs["json"] = str(generate_json(transcript, source_name))
-    outputs["srt"] = str(generate_srt(transcript, source_name))
-    outputs["vtt"] = str(generate_vtt(transcript, source_name))
-    outputs["txt"] = str(generate_txt(transcript, source_name))
+    outputs["json"] = str(generate_json(transcript, source_name, out_name))
+    outputs["srt"] = str(generate_srt(transcript, source_name, out_name))
+    outputs["vtt"] = str(generate_vtt(transcript, source_name, out_name))
+    outputs["txt"] = str(generate_txt(transcript, source_name, out_name))
 
-    review = generate_review_queue(transcript, source_name)
+    review = generate_review_queue(transcript, source_name, out_name)
     if review:
         outputs["review"] = str(review)
 

@@ -15,6 +15,7 @@ if "--device" in sys.argv:
         os.environ["CUDA_VISIBLE_DEVICES"] = ""
 
 import argparse
+import hashlib
 from pathlib import Path
 
 from . import config
@@ -104,17 +105,39 @@ def main():
     # Load manifest for idempotency
     manifest = load_manifest()
 
+    # Output-name collisions are fatal: two distinct source files sharing a
+    # basename would overwrite each other's transcripts with no error. Detect
+    # the whole set up front and fall back to a path-derived name per file.
+    out_names = _resolve_output_names(media_files)
+
+    failures: list[tuple[str, str]] = []
     for media_path in media_files:
-        # Use filename as manifest key (checksum-based key could be added)
-        manifest_key = media_path.name
+        out_name = out_names[media_path]
+        # Manifest key is the output name, NOT the bare filename: several source
+        # files are literally `final.mp4`, and a basename key made them look like
+        # one already-processed file.
+        manifest_key = out_name
 
         # Skip already-processed files
         existing = manifest["files"].get(manifest_key, {})
         if existing.get("status") == "completed":
-            print(f"\nSKIP (already processed): {media_path.name}", flush=True)
+            print(f"\nSKIP (already processed): {out_name}", flush=True)
             continue
 
-        result = process_file(media_path, args.hf_token, args.skip_llm)
+        # One bad file must not abort the batch — record it and continue.
+        try:
+            result = process_file(media_path, args.hf_token, args.skip_llm, out_name)
+        except Exception as exc:  # noqa: BLE001 - deliberately broad; batch resilience
+            print(f"\nERROR: {out_name} raised {type(exc).__name__}: {exc}", flush=True)
+            result = {
+                "status": "failed",
+                "stage": "unhandled",
+                "error": f"{type(exc).__name__}: {exc}",
+                "source_file": media_path.name,
+            }
+
+        if result.get("status") == "failed":
+            failures.append((out_name, str(result.get("error", "unknown"))))
 
         manifest["files"][manifest_key] = result
         save_manifest(manifest)
@@ -130,6 +153,59 @@ def main():
     failed = sum(1 for f in manifest["files"].values() if f.get("status") == "failed")
     print(f"  Completed: {completed}", flush=True)
     print(f"  Failed: {failed}", flush=True)
+
+    if failures:
+        print("\n  FAILURES THIS RUN:", flush=True)
+        for name, err in failures:
+            print(f"    {name}: {err}", flush=True)
+
+
+def _resolve_output_names(media_files: list[Path]) -> dict[Path, str]:
+    """Map each source file to a unique output-name stem.
+
+    Two distinct source files can share a basename — e.g. a course that stores
+    every lesson as ``<vimeo-id>/final.mp4``.  Keying outputs (or the manifest)
+    on the bare filename makes those files collide: the second silently
+    overwrites the first, and the manifest reports the first as already done.
+
+    For each basename used by more than one file, prepend the parent directory
+    name(s) until the stems are unique.  When even that cannot disambiguate, fall
+    back to a short hash of the absolute path so correctness never depends on
+    directory naming.
+    """
+    by_basename: dict[str, list[Path]] = {}
+    for path in media_files:
+        by_basename.setdefault(path.name, []).append(path)
+
+    resolved: dict[Path, str] = {}
+    for basename, paths in by_basename.items():
+        if len(paths) == 1:
+            resolved[paths[0]] = Path(basename).stem
+            continue
+
+        # Collision: widen the disambiguator until every stem is unique.
+        for depth in range(1, 5):
+            stems: dict[str, list[Path]] = {}
+            for path in paths:
+                parts = list(path.parent.parts[-depth:])
+                stems.setdefault("-".join(parts + [Path(basename).stem]), []).append(path)
+            if all(len(v) == 1 for v in stems.values()):
+                for stem, (path,) in ((s, v) for s, v in stems.items()):
+                    resolved[path] = stem
+                break
+        else:
+            # Directory names were not enough — guarantee uniqueness by hash.
+            for path in paths:
+                digest = hashlib.sha256(str(path).encode()).hexdigest()[:8]
+                resolved[path] = f"{Path(basename).stem}-{digest}"
+
+    collisions = len(media_files) - len(set(resolved.values()))
+    if collisions:
+        raise RuntimeError(
+            f"output-name resolution still produced {collisions} collision(s); "
+            "refusing to run rather than overwrite transcripts"
+        )
+    return resolved
 
 
 if __name__ == "__main__":

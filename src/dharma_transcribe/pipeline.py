@@ -43,13 +43,22 @@ def save_manifest(manifest: dict):
     MANIFEST_FILE.write_text(json.dumps(manifest, indent=2, ensure_ascii=False))
 
 
-def process_file(media_path: Path, hf_token: str = "", skip_llm: bool = False) -> dict:
+def process_file(
+    media_path: Path,
+    hf_token: str = "",
+    skip_llm: bool = False,
+    out_name: str | None = None,
+) -> dict:
     """Process a single media file through all 7 pipeline stages.
 
     Args:
         media_path: Path to the input audio/video file.
         hf_token: HuggingFace token for diarization. Empty string skips diarization.
         skip_llm: If True, skip LLM post-correction (Stage 6).
+        out_name: Optional filename stem override for output artifacts. Use when
+            distinct source files share a basename (e.g. one ``final.mp4`` per
+            directory); without it their outputs collide and overwrite each
+            other. Provenance (``source_name``) is unaffected.
 
     Returns:
         Manifest entry dict with status, stages completed, outputs, and timing.
@@ -105,7 +114,7 @@ def process_file(media_path: Path, hf_token: str = "", skip_llm: bool = False) -
 
     # === STAGE 7: OUTPUT ===
     print("\n[STAGE 7: OUTPUT]", flush=True)
-    outputs = generate_all_outputs(transcript, source_name)
+    outputs = generate_all_outputs(transcript, source_name, out_name)
     stages_completed.append("output")
     print(f"  JSON: {outputs.get('json', 'N/A')}", flush=True)
     print(f"  SRT:  {outputs.get('srt', 'N/A')}", flush=True)
