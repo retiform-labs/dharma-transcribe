@@ -85,6 +85,7 @@ LORI_CH = {
  "m5-ch35-chapter-35-your-turn": "Your Turn",
  "m6-ch36-chapter-36-phase-3-part-1": "Phase 3, Part 1",
  "m6-ch37-chapter-37-phase-3-part-2": "Phase 3, Part 2",
+ "m6-ch38-chapter-38-it-s-your-turn": "It’s Your Turn!",
  "m6-ch39-chapter-39-summary-writing": "Summary Writing",
  "m6-ch40-chapter-40-scoring-and-datasheets": "Scoring and Datasheets",
  "m6-ch41-chapter-41-psychometry-and-detoxing": "Psychometry and Detoxing",
@@ -142,9 +143,16 @@ def main():
     stems = [n.rsplit(".", 1)[0] for n in res["completed"]] + \
             [n.rsplit(".", 1)[0] for n in res["skipped"]]
     if only:
-        stems = [s for s in stems if s == only]
-        if not stems:
-            print(f"!! stem not in batch result: {only}"); return 1
+        if only in stems:
+            stems = [only]
+        elif (PROJ / "output/txt" / (only + ".txt")).is_file():
+            # A retry produced a transcript the batch result never recorded.
+            print(f"-- {only} is not in the batch result but its .txt exists; "
+                  f"ingesting it anyway")
+            stems = [only]
+        else:
+            print(f"!! stem not in batch result and no transcript on disk: {only}")
+            return 1
 
     existing = set()
     page = 1
