@@ -16,6 +16,7 @@ disrespect that he would have to clean up later.
 
 RUN AS: sudo -n python3 scripts/sidecar_2026_11_09.py [--apply]
 """
+
 import json
 import os
 import shutil
@@ -65,13 +66,15 @@ def main():
             problems.append(f"MISSING SOURCE {source}")
             continue
         dest_stem = sidecar_stem(source)
-        plan.append({
-            "set": rec["set"],
-            "source": str(source),
-            "stem": dest_stem,
-            "txt_from": str(txt),
-            "srt_from": str(srt) if srt.exists() else None,
-        })
+        plan.append(
+            {
+                "set": rec["set"],
+                "source": str(source),
+                "stem": dest_stem,
+                "txt_from": str(txt),
+                "srt_from": str(srt) if srt.exists() else None,
+            }
+        )
 
     print(f"sources to receive sidecars: {len(plan)}")
     print(f"problems: {len(problems)}")
@@ -97,11 +100,13 @@ def main():
     for item in plan:
         if item["set"] == "sowarigpa-1-1":
             rel = Path(item["source"]).parent.relative_to(
-                Path("/media/mononofu/wd20tb/home/mononofu/shared/Library/sowarigpa/archive"))
+                Path("/media/mononofu/wd20tb/home/mononofu/shared/Library/sowarigpa/archive")
+            )
             print(f"   [sowa] {rel}/final.mp4  ->  {item['stem']}.txt")
 
-    json.dump(plan, open(ROOT / "logs" / "sidecar_plan.json", "w"), indent=2)
-    print(f"\nplan written to logs/sidecar_plan.json")
+    with (ROOT / "logs" / "sidecar_plan.json").open("w") as fh:
+        json.dump(plan, fh, indent=2)
+    print("\nplan written to logs/sidecar_plan.json")
 
     if not APPLY:
         print("\nDRY RUN — pass --apply to write")

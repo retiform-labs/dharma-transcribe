@@ -7,13 +7,17 @@ completed -> all three would be SKIPPED) and one output stem (each would
 overwrite the last). Staging via symlink fixes naming with zero code change to
 the shipped pipeline and zero risk to the 196-entry manifest.
 """
+
 import json
 import os
 import re
 import sys
 from pathlib import Path
 
-KJ = Path("/media/mononofu/Samsung 990 EVO/home/mononofu/Shared/Library/Blue Lotus Assembly/Kuji Remote Learning Workshops/1 - Kuji-In")
+KJ = Path(
+    "/media/mononofu/Samsung 990 EVO/home/mononofu/Shared/Library/"
+    "Blue Lotus Assembly/Kuji Remote Learning Workshops/1 - Kuji-In"
+)
 IS = Path("/media/mononofu/Samsung 990 EVO/home/mononofu/Shared/Library/Intuitive Specialists")
 SW = Path("/media/mononofu/wd20tb/home/mononofu/shared/Library/sowarigpa/archive")
 STAGE = Path("/home/guan/src/dharma-transcribe/staging")
@@ -86,8 +90,13 @@ def main():
             continue
         stage(p, STAGE / "sowarigpa-1-1", f"sowarigpa-1-1-{label}", "sowarigpa-1-1", records)
     for p in walk(SW / "18-module-1-1-mentor-meeting-2025-10-18"):
-        stage(p, STAGE / "sowarigpa-1-1", "sowarigpa-1-1-04-mentor-meeting-2025-10-18",
-              "sowarigpa-1-1", records)
+        stage(
+            p,
+            STAGE / "sowarigpa-1-1",
+            "sowarigpa-1-1-04-mentor-meeting-2025-10-18",
+            "sowarigpa-1-1",
+            records,
+        )
 
     # --- verify: unique staged basenames AND unique stems, globally ---
     byname, bystem = {}, {}

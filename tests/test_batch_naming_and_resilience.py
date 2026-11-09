@@ -79,9 +79,7 @@ def test_outputs_are_written_under_the_override_name(tmp_path, monkeypatch, samp
         monkeypatch.setattr(out, attr, d)
     monkeypatch.setattr(out, "CONFIDENCE_THRESHOLD", 0.5)
 
-    result = out.generate_all_outputs(
-        sample_transcript, "final.mp4", "865789357-final"
-    )
+    result = out.generate_all_outputs(sample_transcript, "final.mp4", "865789357-final")
 
     assert Path(result["txt"]).name == "865789357-final.txt"
     assert Path(result["srt"]).name == "865789357-final.srt"
@@ -130,6 +128,7 @@ def test_cli_continues_after_an_exception(tmp_path, monkeypatch):
 
 
 # --- launcher samaya gate -----------------------------------------------------
+
 
 def test_run_batch_script_skips_llm_by_default():
     """The launcher must never route restricted transcripts off-box by default."""

@@ -20,6 +20,8 @@ Why a driver instead of `python -m dharma_transcribe <dir>`:
 4. A driver-level log with an explicit per-file DONE marker, so "did it finish"
    is answerable from a file rather than from an impression.
 """
+
+import contextlib
 import json
 import os
 import sys
@@ -37,12 +39,13 @@ os.environ["DHARMA_LLM_MODEL"] = ""
 PROJECT = Path("/home/guan/src/dharma-transcribe")
 sys.path.insert(0, str(PROJECT / "src"))
 
-from dharma_transcribe.pipeline import load_manifest, process_file, save_manifest  # noqa: E402
-from dharma_transcribe.gpu import flush_gpu  # noqa: E402
 from dharma_transcribe import config  # noqa: E402
+from dharma_transcribe.gpu import flush_gpu  # noqa: E402
+from dharma_transcribe.pipeline import load_manifest, process_file, save_manifest  # noqa: E402
 
-LOG = Path(os.environ.get("DHARMA_BATCH_LOG",
-                          "/home/guan/src/dharma-transcribe/logs/batch-2026-11-08.log"))
+LOG = Path(
+    os.environ.get("DHARMA_BATCH_LOG", "/home/guan/src/dharma-transcribe/logs/batch-2026-11-08.log")
+)
 
 
 def say(msg: str):
@@ -63,11 +66,14 @@ def main():
 
     say("=" * 70)
     say(f"BATCH START — {len(records)} files")
-    say(f"  device={config.DEVICE} model={config.WHISPER_MODEL} "
-        f"compute={config.COMPUTE_TYPE} batch={config.BATCH_SIZE}")
+    say(
+        f"  device={config.DEVICE} model={config.WHISPER_MODEL} "
+        f"compute={config.COMPUTE_TYPE} batch={config.BATCH_SIZE}"
+    )
     say(f"  whisper_language={config.WHISPER_LANGUAGE!r}  (forced 'en')")
     say(f"  LLM correction: DISABLED (model={config.LLM_MODEL!r}) — samaya gate")
-    say(f"  HF token: {'present (diarization on)' if hf_token else 'MISSING (diarization skipped)'}")
+    hf_note = "present (diarization on)" if hf_token else "MISSING (diarization skipped)"
+    say(f"  HF token: {hf_note}")
     say("=" * 70)
 
     manifest = load_manifest()
@@ -94,8 +100,10 @@ def main():
             if status == "completed":
                 dur = result.get("duration") or 0
                 pt = result.get("processing_time") or 0
-                say(f"    COMPLETED {dur/60:.1f} min audio in {pt/60:.1f} min "
-                    f"(ratio {pt/dur if dur else 0:.3f})")
+                say(
+                    f"    COMPLETED {dur / 60:.1f} min audio in {pt / 60:.1f} min "
+                    f"(ratio {pt / dur if dur else 0:.3f})"
+                )
                 results["completed"].append(key)
             else:
                 say(f"    FAILED at stage {result.get('stage')}: {result.get('error')}")
@@ -113,17 +121,17 @@ def main():
             save_manifest(manifest)
             results["failed"].append((key, str(exc)))
         finally:
-            try:
+            with contextlib.suppress(Exception):
                 flush_gpu()
-            except Exception:  # noqa: BLE001
-                pass
 
         # Progress heartbeat in wall-clock terms measured from this run only.
         elapsed = time.time() - t0
         done = len(results["completed"]) + len(results["failed"])
         if done and elapsed > 0:
-            say(f"    [progress] {done}/{len(records)} attempted, "
-                f"{elapsed/60:.0f} min elapsed this run")
+            say(
+                f"    [progress] {done}/{len(records)} attempted, "
+                f"{elapsed / 60:.0f} min elapsed this run"
+            )
 
     say("\n" + "=" * 70)
     say("BATCH COMPLETE")
@@ -132,10 +140,11 @@ def main():
     say(f"  failed   : {len(results['failed'])}")
     for k, e in results["failed"]:
         say(f"    FAILED {k}: {e}")
-    say(f"  total wall time this run: {(time.time()-t0)/60:.1f} min")
+    say(f"  total wall time this run: {(time.time() - t0) / 60:.1f} min")
     say("=" * 70)
     Path("/home/guan/src/dharma-transcribe/logs/batch-2026-11-08-result.json").write_text(
-        json.dumps(results, indent=2))
+        json.dumps(results, indent=2)
+    )
     say("DONE=0")
 
 

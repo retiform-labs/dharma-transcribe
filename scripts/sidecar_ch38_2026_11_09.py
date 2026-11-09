@@ -5,7 +5,7 @@ MODULE = Path(
     "/media/mononofu/Samsung 990 EVO/home/mononofu/Shared/Library/"
     "Intuitive Specialists/Practical Remote Viewing/Module 6: Home Stretch"
 )
-SOURCE_STEM = "Chapter 38: It\u2019s Your Turn"   # U+2019, exact video stem
+SOURCE_STEM = "Chapter 38: It\u2019s Your Turn"  # U+2019, exact video stem
 WORK_STEM = "lori-m6-ch38-chapter-38-it-s-your-turn"
 
 SIDE_STEM = "Chapter 38: It\u2019s Your Turn"
